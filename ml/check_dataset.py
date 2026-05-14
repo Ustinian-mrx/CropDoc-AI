@@ -16,18 +16,18 @@ def count_images(class_dir: Path) -> int:
     return count
 
 
-def main():
-    print("Checking PlantVillage dataset...")
-    print(f"Dataset path: {PLANT_VILLAGE_DIR}")
+def check_split(split_name: str):
+    split_dir = PLANT_VILLAGE_DIR / split_name
 
-    if not PLANT_VILLAGE_DIR.exists():
-        print("ERROR: PlantVillage dataset directory does not exist.")
-        print("Please place the dataset at:")
-        print(PLANT_VILLAGE_DIR)
-        return
+    print(f"\nChecking {split_name} split...")
+    print(f"Path: {split_dir}")
+
+    if not split_dir.exists():
+        print(f"ERROR: {split_name} directory does not exist.")
+        return False
 
     class_dirs = [
-        path for path in PLANT_VILLAGE_DIR.iterdir()
+        path for path in split_dir.iterdir()
         if path.is_dir()
     ]
 
@@ -43,20 +43,43 @@ def main():
         print(f"{index:02d}. {class_dir.name}: {image_count} images")
 
     print("-" * 40)
-    print(f"Total images: {total_images}")
+    print(f"{split_name} total images: {total_images}")
 
     if len(class_dirs) != NUM_CLASSES:
         print(
             f"WARNING: Expected {NUM_CLASSES} classes, "
             f"but found {len(class_dirs)}."
         )
-    else:
-        print("Class count looks good.")
+        return False
 
     if total_images == 0:
-        print("WARNING: No images found. Please check your dataset files.")
+        print("WARNING: No images found.")
+        return False
+
+    print(f"{split_name} split looks good.")
+    return True
+
+
+def main():
+    print("Checking PlantVillage dataset...")
+    print(f"Dataset root: {PLANT_VILLAGE_DIR}")
+
+    if not PLANT_VILLAGE_DIR.exists():
+        print("ERROR: PlantVillage dataset directory does not exist.")
+        print("Please place the dataset at:")
+        print(PLANT_VILLAGE_DIR)
+        return
+
+    train_ok = check_split("train")
+    val_ok = check_split("val")
+
+    print("\nSummary")
+    print("-" * 40)
+
+    if train_ok and val_ok:
+        print("Dataset check finished. Train and val splits look good.")
     else:
-        print("Dataset check finished.")
+        print("Dataset check finished with warnings. Please inspect the messages above.")
 
 
 if __name__ == "__main__":
