@@ -24,7 +24,18 @@ type PredictResponse = {
     heatmap_url: string | null;
   };
   note: string;
+  advice: Advice;
 };
+
+type Advice = {
+  title: string;
+  risk_level: string;
+  symptoms: string[];
+  actions: string[];
+  prevention: string[];
+  disclaimer: string;
+};
+
 
 
 export default function Home() {
@@ -175,6 +186,62 @@ export default function Home() {
                     Model: {result.model.name} / v{result.model.version}
                   </p>
 
+                </div>
+                {result.explanation.gradcam_available && result.explanation.heatmap_url ? (
+                  <div className="rounded-md border border-slate-800 bg-slate-950 p-4">
+                    <p className="text-sm font-medium text-slate-300">模型关注区域</p>
+                    <img
+                      src={`${apiBaseUrl}${result.explanation.heatmap_url}`}
+                      alt="Grad-CAM heatmap"
+                      className="mt-3 h-80 w-full rounded-md object-contain"
+                    />
+                  </div>
+                ) : null}
+                <div className="rounded-md border border-slate-800 bg-slate-950 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-300">防治建议</p>
+                      <h3 className="mt-2 text-lg font-semibold text-white">
+                        {result.advice.title}
+                      </h3>
+                    </div>
+                    <span className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950">
+                      {result.advice.risk_level}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-300">症状参考</p>
+                      <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-400">
+                        {result.advice.symptoms.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium text-slate-300">处理措施</p>
+                      <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-400">
+                        {result.advice.actions.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium text-slate-300">预防建议</p>
+                      <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-400">
+                        {result.advice.prevention.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-xs leading-5 text-slate-500">
+                    {result.advice.disclaimer}
+                  </p>
                 </div>
 
                 <div>

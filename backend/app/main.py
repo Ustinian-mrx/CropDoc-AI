@@ -1,7 +1,9 @@
 from io import BytesIO
 
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from app.services.advice import build_advice
 from PIL import Image
 
 from app.services.inference import predictor
@@ -22,6 +24,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.mount(
+    "/static",
+    StaticFiles(directory="static"),
+    name="static",
 )
 
 
@@ -52,12 +59,16 @@ async def predict(file: UploadFile = File(...)):
         file_bytes = await file.read()
         image = Image.open(BytesIO(file_bytes))
 
-        top3 = predictor.predict(
+        prediction_output = predictor.predict(
             image=image,
             top_k=3,
         )
 
+        top3 = prediction_output["top3"]
+        heatmap_url = prediction_output["heatmap_url"]
+
         best_result = top3[0]
+        advice = build_advice(best_result)
 
         return {
             "filename": file.filename,
@@ -69,10 +80,11 @@ async def predict(file: UploadFile = File(...)):
         "prediction": best_result,
         "top3": top3,
         "explanation": {
-            "gradcam_available": False,
-            "heatmap_url": None,
+            "gradcam_available": True,
+            "heatmap_url": heatmap_url,
         },
         "note": "Prediction is based on the PlantVillage-trained model and should be used as a reference only.",
+        "advice": advice,
     }   
 
 

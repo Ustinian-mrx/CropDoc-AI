@@ -6,6 +6,7 @@ from PIL import Image
 from torch import nn
 from torchvision import models, transforms
 from app.services.label_utils import parse_class_name
+from app.services.gradcam import GradCAM, save_gradcam_overlay
 
 
 
@@ -23,6 +24,8 @@ class CropDiseasePredictor:
         self.transform = self._build_transform()
         self.model = self._build_model()
         self.idx_to_class = {}
+        self.gradcam = None
+
 
         self._load_checkpoint()
 
@@ -73,8 +76,15 @@ class CropDiseasePredictor:
             index: class_name
             for class_name, index in class_to_idx.items()
         }
+        target_layer = self.model.features[-1]
+        
+        self.gradcam = GradCAM(
+            model=self.model,
+            target_layer=target_layer,
+        )
 
-    def predict(self, image: Image.Image, top_k: int = 3) -> List[Dict]:
+
+    def predict(self, image: Image.Image, top_k: int = 3) -> dict:
         image = image.convert("RGB")
         image_tensor = self.transform(image).unsqueeze(0)
         image_tensor = image_tensor.to(self.device)
@@ -94,14 +104,31 @@ class CropDiseasePredictor:
             class_index = index.item()
             class_name = self.idx_to_class[class_index]
             confidence = prob.item()
-        parsed_label = parse_class_name(class_name)
 
-        results.append({
-            **parsed_label,
-            "confidence": confidence,
-        })  
+            parsed_label = parse_class_name(class_name)
 
-        return results
+            results.append({
+                **parsed_label,
+                "confidence": confidence,
+            })
+
+        best_class_index = top_indices[0][0].item()
+
+        cam = self.gradcam.generate(
+            image_tensor=image_tensor,
+            class_index=best_class_index,
+        )
+
+        heatmap_url = save_gradcam_overlay(
+            image_tensor=image_tensor,
+            cam=cam,
+        )
+
+        return {
+            "top3": results,
+            "heatmap_url": heatmap_url,
+        }
+
 
 
 predictor = CropDiseasePredictor()
