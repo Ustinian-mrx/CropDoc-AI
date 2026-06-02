@@ -36,12 +36,37 @@ type Advice = {
   disclaimer: string;
 };
 
+type HistoryRecord = {
+  id: number;
+  filename: string;
+  prediction: {
+    crop: string;
+    disease: string;
+    is_healthy: boolean;
+    confidence: number;
+  };
+  top3: PredictionResult[];
+  advice: Advice;
+  explanation: {
+    gradcam_available: boolean;
+    heatmap_url: string | null;
+  };
+  created_at: string;
+};
+
+type HistoryResponse = {
+  items: HistoryRecord[];
+  count: number;
+};
 
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [result, setResult] = useState<PredictResponse | null>(null);
+  const [historyItems, setHistoryItems] = useState<HistoryRecord[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -88,6 +113,7 @@ export default function Home() {
 
       const data = (await response.json()) as PredictResponse;
       setResult(data);
+      await loadHistory();
     } catch (error) {
       const message = error instanceof Error ? error.message : "未知错误。";
       setErrorMessage(message);
@@ -95,6 +121,28 @@ export default function Home() {
       setIsLoading(false);
     }
   }
+
+  async function loadHistory() {
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/history?limit=10`);
+
+      if (!response.ok) {
+        throw new Error("历史记录加载失败。");
+      }
+
+      const data = (await response.json()) as HistoryResponse;
+      setHistoryItems(data.items);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "未知错误。";
+      setHistoryError(message);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }
+
 
   function formatPercent(value: number) {
     return `${(value * 100).toFixed(2)}%`;
@@ -286,6 +334,78 @@ export default function Home() {
             ) : (
               <div className="mt-4 flex h-80 items-center justify-center rounded-md border border-dashed border-slate-700 bg-slate-950 text-sm text-slate-500">
                 诊断结果会显示在这里
+              </div>
+            )}
+          </div>
+        </section>
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-medium text-white">历史记录</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                查看最近 10 次诊断结果。
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={loadHistory}
+              disabled={isHistoryLoading}
+              className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-emerald-400 hover:text-emerald-300 disabled:cursor-not-allowed disabled:text-slate-500"
+            >
+              {isHistoryLoading ? "加载中..." : "刷新"}
+            </button>
+          </div>
+
+          {historyError ? (
+            <p className="mt-4 rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-200">
+              {historyError}
+            </p>
+          ) : null}
+
+          <div className="mt-4 grid gap-3">
+            {historyItems.length > 0 ? (
+              historyItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-md border border-slate-800 bg-slate-950 p-4"
+                >
+                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {item.prediction.crop} / {item.prediction.disease}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {item.filename} · {item.created_at}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-md bg-slate-800 px-3 py-1 text-xs text-slate-300">
+                        {item.prediction.is_healthy ? "健康" : "疑似病害"}
+                      </span>
+
+                      <span className="text-sm font-semibold text-emerald-300">
+                        {formatPercent(item.prediction.confidence)}
+                      </span>
+
+                      {item.explanation.heatmap_url ? (
+                        <a
+                          href={`${apiBaseUrl}${item.explanation.heatmap_url}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-emerald-300 hover:text-emerald-200"
+                        >
+                          热力图
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-md border border-dashed border-slate-700 bg-slate-950 p-6 text-center text-sm text-slate-500">
+                暂无历史记录
               </div>
             )}
           </div>

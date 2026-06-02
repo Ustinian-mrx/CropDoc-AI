@@ -7,6 +7,12 @@ from app.services.advice import build_advice
 from PIL import Image
 
 from app.services.inference import predictor
+from app.services.db import (
+    init_db,
+    save_diagnosis_record,
+    list_diagnosis_records,
+)
+
 
 
 app = FastAPI(
@@ -30,6 +36,8 @@ app.mount(
     StaticFiles(directory="static"),
     name="static",
 )
+init_db()
+
 
 
 @app.get("/")
@@ -69,23 +77,32 @@ async def predict(file: UploadFile = File(...)):
 
         best_result = top3[0]
         advice = build_advice(best_result)
+        record_id = save_diagnosis_record(
+            filename=file.filename or "unknown",
+            prediction=best_result,
+            top3=top3,
+            advice=advice,
+            heatmap_url=heatmap_url,
+    )
 
         return {
+            "record_id": record_id,
             "filename": file.filename,
             "model": {
                 "name": "efficientnet_b0",
                 "version": "0.1.0",
                 "image_size": 224,
-        },
-        "prediction": best_result,
-        "top3": top3,
-        "explanation": {
-            "gradcam_available": True,
-            "heatmap_url": heatmap_url,
-        },
-        "note": "Prediction is based on the PlantVillage-trained model and should be used as a reference only.",
-        "advice": advice,
-    }   
+            },
+            "prediction": best_result,
+            "top3": top3,
+            "explanation": {
+                "gradcam_available": True,
+                "heatmap_url": heatmap_url,
+            },
+            "note": "预测是基于plantvillage训练的模型，只应用作参考。实际诊断请结合田间观察和农技人员建议。",
+            "advice": advice,
+        
+        }   
 
 
     except Exception as exc:
@@ -93,3 +110,12 @@ async def predict(file: UploadFile = File(...)):
             status_code=500,
             detail=f"Prediction failed: {exc}",
         )
+        
+@app.get("/history")
+def get_history(limit: int = 20):
+    records = list_diagnosis_records(limit=limit)
+
+    return {
+        "items": records,
+        "count": len(records),
+    }

@@ -4,18 +4,25 @@ __pycache__/
 .venv/
 venv/
 .env
+*.db
 
 # Node
 node_modules/
 .next/
 out/
 dist/
+.env.local
 
 # Data and models
 data/
 models/*.pth
 models/*.pt
 models/*.onnx
+
+# Runtime artifacts
+backend/cropdoc.db
+backend/static/heatmaps/*
+!backend/static/heatmaps/.gitkeep
 
 # OS
 .DS_Store
